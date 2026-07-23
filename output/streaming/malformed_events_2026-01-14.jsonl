@@ -1,0 +1,3 @@
+{"event_id": "bad-1", "transaction_id": null, "amount": "not-a-number"}
+{this is not valid json}
+{"event_id": "bad-3", "event_type": "TRANSACTION_CREATED"}

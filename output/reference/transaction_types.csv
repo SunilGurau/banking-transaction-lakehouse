@@ -1,0 +1,7 @@
+transaction_type_code,transaction_type_name,balance_direction
+DEP,Deposit,credit
+WDR,Withdrawal,debit
+TRF,Transfer,mixed
+POS,Card Purchase,debit
+FEE,Bank Fee,debit
+REV,Reversal,mixed

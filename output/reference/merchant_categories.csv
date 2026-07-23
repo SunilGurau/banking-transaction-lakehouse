@@ -1,0 +1,9 @@
+merchant_category_code,merchant_category_name,risk_category
+5411,Grocery Stores,LOW
+5812,Restaurants,LOW
+6011,ATM Cash Withdrawal,MEDIUM
+5732,Electronics,MEDIUM
+7995,Gaming,HIGH
+4829,Money Transfer,HIGH
+4111,Transport,LOW
+5912,Pharmacy,LOW
