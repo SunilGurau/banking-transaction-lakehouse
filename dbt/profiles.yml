@@ -1,0 +1,12 @@
+banking_analytics:
+  outputs:
+    dev:
+      dbname: banking-analytics
+      host: etl-postgres
+      pass: testpassword
+      port: 5432
+      schema: public
+      threads: 1
+      type: postgres
+      user: admin
+  target: dev

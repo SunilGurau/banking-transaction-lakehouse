@@ -1,0 +1,4 @@
+.venv
+logs
+/dbt/logs
+.env

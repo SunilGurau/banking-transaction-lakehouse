@@ -1,0 +1,195 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: lakehouse_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+  airflow-postgres:
+    image: postgres:16
+    container_name: airflow_metadata_postgres
+    environment:
+      POSTGRES_USER: ${AIRFLOW_METADATA_DB_USER:-airflow}
+      POSTGRES_PASSWORD: ${AIRFLOW_METADATA_DB_PASSWORD:-airflow}
+      POSTGRES_DB: ${AIRFLOW_METADATA_DB_NAME:-airflow}
+    volumes:
+      - airflow_metadata_db:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${AIRFLOW_METADATA_DB_USER:-airflow} -d ${AIRFLOW_METADATA_DB_NAME:-airflow} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  etl-postgres:
+    image: postgres:16
+    container_name: etl_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-etl_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-etl_password}
+      POSTGRES_DB: ${POSTGRES_DB:-etl_db}
+    ports:
+      - "5433:5432"
+    volumes:
+      - etl_postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-etl_user} -d ${POSTGRES_DB:-etl_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  airflow-init:
+    build: .
+    container_name: airflow_init
+    depends_on:
+      minio:
+        condition: service_started
+      airflow-postgres:
+        condition: service_healthy
+      etl-postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_METADATA_DB_USER:-airflow}:${AIRFLOW_METADATA_DB_PASSWORD:-airflow}@airflow-postgres:5432/${AIRFLOW_METADATA_DB_NAME:-airflow}
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
+      POSTGRES_USER: ${POSTGRES_USER:-etl_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-etl_password}
+      POSTGRES_DB: ${POSTGRES_DB:-etl_db}
+      POSTGRES_HOST: ${POSTGRES_HOST:-etl-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_BUCKET: ${MINIO_BUCKET:-banking-lakehouse}
+      MINIO_REFERENCE_PREFIX: ${MINIO_REFERENCE_PREFIX:-raw/reference}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_AWS_CONN_ID: ${MINIO_AWS_CONN_ID:-minio}
+      AIRFLOW_CONN_MINIO: "aws://${MINIO_ROOT_USER:-minioadmin}:${MINIO_ROOT_PASSWORD:-minioadmin123}@/?endpoint_url=http%3A%2F%2Fminio%3A9000&region_name=us-east-1"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
+      - ./logs:/opt/airflow/logs
+      - ./src:/opt/airflow/src
+      - ./plugins:/opt/airflow/plugins
+      - ./dbt:/opt/airflow/dbt
+    command: >
+      bash -c "
+      airflow db migrate &&
+      airflow users create
+      --username ${AIRFLOW_ADMIN_USERNAME:-airflow}
+      --password ${AIRFLOW_ADMIN_PASSWORD:-airflow}
+      --firstname ${AIRFLOW_ADMIN_FIRSTNAME:-Airflow}
+      --lastname ${AIRFLOW_ADMIN_LASTNAME:-Admin}
+      --role Admin
+      --email ${AIRFLOW_ADMIN_EMAIL:-airflow@example.com}
+      "
+    restart: "no"
+
+  airflow-webserver:
+    build: .
+    container_name: airflow_webserver
+    depends_on:
+      minio:
+        condition: service_started
+      airflow-init:
+        condition: service_completed_successfully
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_METADATA_DB_USER:-airflow}:${AIRFLOW_METADATA_DB_PASSWORD:-airflow}@airflow-postgres:5432/${AIRFLOW_METADATA_DB_NAME:-airflow}
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
+      POSTGRES_USER: ${POSTGRES_USER:-etl_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-etl_password}
+      POSTGRES_DB: ${POSTGRES_DB:-etl_db}
+      POSTGRES_HOST: ${POSTGRES_HOST:-etl-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_BUCKET: ${MINIO_BUCKET:-banking-lakehouse}
+      MINIO_REFERENCE_PREFIX: ${MINIO_REFERENCE_PREFIX:-raw/reference}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_AWS_CONN_ID: ${MINIO_AWS_CONN_ID:-minio}
+      AIRFLOW_CONN_MINIO: "aws://${MINIO_ROOT_USER:-minioadmin}:${MINIO_ROOT_PASSWORD:-minioadmin123}@/?endpoint_url=http%3A%2F%2Fminio%3A9000&region_name=us-east-1"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
+      - ./logs:/opt/airflow/logs
+      - ./src:/opt/airflow/src
+      - ./plugins:/opt/airflow/plugins
+      - ./dbt:/opt/airflow/dbt
+    command: webserver
+    restart: unless-stopped
+
+  airflow-scheduler:
+    build: .
+    container_name: airflow_scheduler
+    depends_on:
+      minio:
+        condition: service_started
+      airflow-init:
+        condition: service_completed_successfully
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_METADATA_DB_USER:-airflow}:${AIRFLOW_METADATA_DB_PASSWORD:-airflow}@airflow-postgres:5432/${AIRFLOW_METADATA_DB_NAME:-airflow}
+      AIRFLOW_CONN_ETL_POSTGRES: postgresql://${POSTGRES_USER:-etl_user}:${POSTGRES_PASSWORD:-etl_password}@etl-postgres:5432/${POSTGRES_DB:-etl_db}
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
+      POSTGRES_USER: ${POSTGRES_USER:-etl_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-etl_password}
+      POSTGRES_DB: ${POSTGRES_DB:-etl_db}
+      POSTGRES_HOST: ${POSTGRES_HOST:-etl-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      DBT_PROJECT_DIR: ${DBT_PROJECT_DIR:-/opt/airflow/dbt/banking_analytics}
+      DBT_PROFILES_DIR: ${DBT_PROFILES_DIR:-/opt/airflow/dbt}
+      DBT_TARGET: ${DBT_TARGET:-dev}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_BUCKET: ${MINIO_BUCKET:-banking-lakehouse}
+      MINIO_REFERENCE_PREFIX: ${MINIO_REFERENCE_PREFIX:-raw/reference}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_AWS_CONN_ID: ${MINIO_AWS_CONN_ID:-minio}
+      AIRFLOW_CONN_MINIO: "aws://${MINIO_ROOT_USER:-minioadmin}:${MINIO_ROOT_PASSWORD:-minioadmin123}@/?endpoint_url=http%3A%2F%2Fminio%3A9000&region_name=us-east-1"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
+      - ./logs:/opt/airflow/logs
+      - ./src:/opt/airflow/src
+      - ./plugins:/opt/airflow/plugins
+      - ./dbt:/opt/airflow/dbt
+    command: scheduler
+    restart: unless-stopped
+
+volumes:
+  airflow_metadata_db:
+  etl_postgres_data:
+  minio_data:
