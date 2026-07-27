@@ -13,6 +13,90 @@ services:
       - minio_data:/data
     restart: unless-stopped
 
+  spark-master:
+    image: apache/spark:3.5.1
+    container_name: spark_master
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_BUCKET: ${MINIO_BUCKET:-banking-lakehouse}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+    ports:
+      - "7077:7077"
+      - "8081:8080"
+    volumes:
+      - ./spark/conf:/opt/spark/conf
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.master.Master
+      - --host
+      - spark-master
+      - --port
+      - "7077"
+      - --webui-port
+      - "8080"
+    restart: unless-stopped
+
+  spark-worker:
+    image: apache/spark:3.5.1
+    container_name: spark_worker
+    depends_on:
+      spark-master:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_BUCKET: ${MINIO_BUCKET:-banking-lakehouse}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./spark/conf:/opt/spark/conf
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.worker.Worker
+      - spark://spark-master:7077
+      - --webui-port
+      - "8080"
+      - --cores
+      - "2"
+      - --memory
+      - 2G
+    restart: unless-stopped
+
+  spark-thriftserver:
+    image: apache/spark:3.5.1
+    container_name: spark_thriftserver
+    depends_on:
+      spark-master:
+        condition: service_started
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_BUCKET: ${MINIO_BUCKET:-banking-lakehouse}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+    ports:
+      - "10000:10000"
+    volumes:
+      - ./spark/conf:/opt/spark/conf
+    command:
+      - /opt/spark/sbin/start-thriftserver.sh
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - hive.server2.thrift.bind.host=0.0.0.0
+      - --conf
+      - hive.server2.thrift.port=10000
+    restart: unless-stopped
+
   airflow-postgres:
     image: postgres:16
     container_name: airflow_metadata_postgres
@@ -86,6 +170,10 @@ services:
       MINIO_REGION: ${MINIO_REGION:-us-east-1}
       MINIO_AWS_CONN_ID: ${MINIO_AWS_CONN_ID:-minio}
       AIRFLOW_CONN_MINIO: "aws://${MINIO_ROOT_USER:-minioadmin}:${MINIO_ROOT_PASSWORD:-minioadmin123}@/?endpoint_url=http%3A%2F%2Fminio%3A9000&region_name=us-east-1"
+      SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+      SPARK_THRIFTSERVER_HOST: ${SPARK_THRIFTSERVER_HOST:-spark-thriftserver}
+      SPARK_THRIFTSERVER_PORT: ${SPARK_THRIFTSERVER_PORT:-10000}
+      SPARK_WAREHOUSE_DIR: ${SPARK_WAREHOUSE_DIR:-s3a://banking-lakehouse/spark-warehouse}
     volumes:
       - ./dags:/opt/airflow/dags
       - ./data:/opt/airflow/data
@@ -135,6 +223,10 @@ services:
       MINIO_REGION: ${MINIO_REGION:-us-east-1}
       MINIO_AWS_CONN_ID: ${MINIO_AWS_CONN_ID:-minio}
       AIRFLOW_CONN_MINIO: "aws://${MINIO_ROOT_USER:-minioadmin}:${MINIO_ROOT_PASSWORD:-minioadmin123}@/?endpoint_url=http%3A%2F%2Fminio%3A9000&region_name=us-east-1"
+      SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+      SPARK_THRIFTSERVER_HOST: ${SPARK_THRIFTSERVER_HOST:-spark-thriftserver}
+      SPARK_THRIFTSERVER_PORT: ${SPARK_THRIFTSERVER_PORT:-10000}
+      SPARK_WAREHOUSE_DIR: ${SPARK_WAREHOUSE_DIR:-s3a://banking-lakehouse/spark-warehouse}
     ports:
       - "8080:8080"
     volumes:
@@ -170,7 +262,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       DBT_PROJECT_DIR: ${DBT_PROJECT_DIR:-/opt/airflow/dbt/banking_analytics}
       DBT_PROFILES_DIR: ${DBT_PROFILES_DIR:-/opt/airflow/dbt}
-      DBT_TARGET: ${DBT_TARGET:-dev}
+      DBT_TARGET: spark
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
@@ -179,6 +271,10 @@ services:
       MINIO_REGION: ${MINIO_REGION:-us-east-1}
       MINIO_AWS_CONN_ID: ${MINIO_AWS_CONN_ID:-minio}
       AIRFLOW_CONN_MINIO: "aws://${MINIO_ROOT_USER:-minioadmin}:${MINIO_ROOT_PASSWORD:-minioadmin123}@/?endpoint_url=http%3A%2F%2Fminio%3A9000&region_name=us-east-1"
+      SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+      SPARK_THRIFTSERVER_HOST: ${SPARK_THRIFTSERVER_HOST:-spark-thriftserver}
+      SPARK_THRIFTSERVER_PORT: ${SPARK_THRIFTSERVER_PORT:-10000}
+      SPARK_WAREHOUSE_DIR: ${SPARK_WAREHOUSE_DIR:-s3a://banking-lakehouse/spark-warehouse}
     volumes:
       - ./dags:/opt/airflow/dags
       - ./data:/opt/airflow/data

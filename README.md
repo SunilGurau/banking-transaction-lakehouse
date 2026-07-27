@@ -8,6 +8,7 @@ The current repository focuses on the lakehouse foundation:
 - Airflow orchestration for ingestion tasks.
 - Reference data ingestion into MinIO.
 - Delta Lake table writes for local analytical storage.
+- Standalone Spark for MinIO-backed batch and SQL model processing.
 - Docker Compose-based local development.
 
 ## Business Context
@@ -51,7 +52,7 @@ gold/<table_name>/
 - Python for ingestion utilities, validation helpers, and synthetic data generation.
 - PostgreSQL for serving, audits, and dashboard support.
 - Kafka for transaction event streaming and DLQ handling.
-- Spark for batch and streaming processing.
+- Spark standalone cluster for batch and streaming processing plus dbt Spark SQL models.
 - Airflow for orchestration.
 - dbt Core for staging, marts, tests, and documentation.
 - MinIO for local object storage.
@@ -139,6 +140,9 @@ The capstone design targets the following analytical tables:
 The Compose stack includes:
 
 - MinIO on `http://localhost:9000` with console on `http://localhost:9001`.
+- Spark master UI on `http://localhost:8081`.
+- Spark worker UI on `http://localhost:8082`.
+- Spark Thrift Server on `localhost:10000` for dbt Spark SQL models.
 - Airflow webserver on `http://localhost:8080`.
 - PostgreSQL for Airflow metadata.
 - PostgreSQL for the project serving layer.
@@ -170,6 +174,8 @@ The `airflow-init` service creates the Airflow metadata schema and the admin use
 
 The stack provides an Airflow connection for MinIO named `minio`. The reference loader uses that connection through Airflow's S3 hook path so the containerized runtime can talk to MinIO without hardcoding local-only credentials in task code.
 
+Spark is configured with S3A access to MinIO and Delta Lake support through `spark-defaults.conf`. dbt points at the Spark Thrift Server, so future models can be written as Spark SQL models against the lakehouse tables stored in MinIO.
+
 ## Data Flow
 
 1. Reference CSVs are copied to MinIO as raw landing files.
@@ -188,6 +194,10 @@ Useful variables exposed through Compose:
 - `MINIO_REFERENCE_PREFIX`
 - `MINIO_REGION`
 - `MINIO_AWS_CONN_ID`
+- `SPARK_MASTER_URL`
+- `SPARK_THRIFTSERVER_HOST`
+- `SPARK_THRIFTSERVER_PORT`
+- `SPARK_WAREHOUSE_DIR`
 
 ## Suggested Next Build-Out
 

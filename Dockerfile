@@ -17,11 +17,13 @@ RUN python -m venv /home/airflow/dbt-venv \
     && /home/airflow/dbt-venv/bin/python -m pip install \
         --no-cache-dir \
         dbt-core==1.9.8 \
-        dbt-postgres==1.9.0
+        dbt-spark==1.9.0 \
+        pyhive==0.7.0 \
+        thrift==0.20.0
 
 RUN python -m pip install --no-cache-dir \
         boto3 \
-    apache-airflow-providers-amazon \
+        apache-airflow-providers-amazon \
         deltalake \
         pandas \
         pyarrow
