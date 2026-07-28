@@ -29,9 +29,13 @@ clean-targets: # directories to be removed by `dbt clean`
 # files using the `{{ config(...) }}` macro.
 models:
   banking_analytics:
+    +file_format: delta
     bronze:
       +materialized: table
+      +location_root: "s3a://bronze"
     silver:
       +materialized: table
+      +location_root: "s3a://silver"
     gold:
       +materialized: table
+      +location_root: "s3a://gold"

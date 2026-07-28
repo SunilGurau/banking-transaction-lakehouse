@@ -1,4 +1,4 @@
-{{ config(materialized='table') }}
+{{ config(materialized='table', alias='stg_reference_branches') }}
 
 {% set reference_table_uris = var('reference_table_uris', {}) %}
 {% set branches_uri = reference_table_uris.get('branches') %}

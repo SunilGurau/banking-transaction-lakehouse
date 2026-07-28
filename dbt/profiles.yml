@@ -4,8 +4,7 @@ banking_analytics:
       auth: NOSASL
       method: thrift
       connect_timeout: 30
-      driver: org.apache.hive.jdbc.HiveDriver
-      host: spark-thriftserver
+      host: spark-thrift
       port: 10000
       schema: analytics
       threads: 2
