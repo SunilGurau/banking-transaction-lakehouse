@@ -135,17 +135,18 @@ The capstone design targets the following analytical tables:
 - `dim_transaction_type`
 - `dim_date`
 
-## Local Services
+## Local Services & Exposed Ports
 
-The Compose stack includes:
+The Docker Compose stack exposes the following services and ports locally:
 
-- MinIO on `http://localhost:9000` with console on `http://localhost:9001`.
-- Spark master UI on `http://localhost:8081`.
-- Spark worker UI on `http://localhost:8082`.
-- Spark Thrift Server on `localhost:10000` for dbt Spark SQL models.
-- Airflow webserver on `http://localhost:8080`.
-- PostgreSQL for Airflow metadata.
-- PostgreSQL for the project serving layer.
+- **MinIO API:** `http://localhost:9000`
+- **MinIO Console:** `http://localhost:9001` (Credentials: `minioadmin` / `minioadmin123`)
+- **Spark Thrift Server (JDBC/ODBC):** `localhost:10000` (for dbt Spark SQL models)
+- **Spark UI:** `http://localhost:4040` (Available when Thrift server or Spark jobs are running)
+- **Jupyter Notebook:** `http://localhost:8888` (Token: `minioadmin`)
+- **Airflow Webserver:** `http://localhost:8080` (Credentials: `airflow` / `airflow`)
+- **ETL PostgreSQL:** `localhost:5433` (Serving layer database)
+- **Airflow PostgreSQL:** internal only (metadata)
 
 ## Setup
 
@@ -167,8 +168,9 @@ The `airflow-init` service creates the Airflow metadata schema and the admin use
 
 ### 4. Open the UIs
 
-- Airflow: `http://localhost:8080`
-- MinIO console: `http://localhost:9001`
+- **Airflow:** `http://localhost:8080`
+- **Jupyter Notebook:** `http://localhost:8888`
+- **MinIO console:** `http://localhost:9001`
 
 ## Airflow Connection
 
