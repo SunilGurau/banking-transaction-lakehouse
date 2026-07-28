@@ -53,6 +53,21 @@ services:
     hostname: spark-thrift
     restart: unless-stopped
 
+  jupyter:
+    image: jupyter/pyspark-notebook:spark-3.5.0
+    container_name: jupyter
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=minioadmin
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
   airflow-postgres:
     image: postgres:16
     container_name: airflow_metadata_postgres
