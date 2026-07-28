@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import sys
 from pathlib import Path
@@ -25,7 +24,6 @@ DBT_PROJECT_DIR = Path(
 DBT_PROFILES_DIR = Path(os.environ.get("DBT_PROFILES_DIR", "/opt/airflow/dbt"))
 DBT_TARGET = os.environ.get("DBT_TARGET", "spark")
 
-
 def _latest_reference_delta_uri(table_name: str) -> str:
     hook = S3Hook(aws_conn_id="minio")
     prefix = f"{REFERENCE_STAGE_PREFIX}/{table_name}/"
@@ -43,7 +41,6 @@ def _latest_reference_delta_uri(table_name: str) -> str:
 
     latest_timestamp = max(timestamps)
     return f"s3a://{LAKEHOUSE_BUCKET}/{prefix}{latest_timestamp}"
-
 
 @dag(
     dag_id="reference_to_minio_delta",
@@ -82,7 +79,8 @@ def reference_to_minio_delta():
             f"--project-dir {DBT_PROJECT_DIR} "
             f"--profiles-dir {DBT_PROFILES_DIR} "
             f"--target {DBT_TARGET} "
-            f"--vars '{{\"reference_table_uris\": {json.dumps(resolve_latest_reference_tables.output)}}}'"
+            f"--select stg_reference__branches dim_branch "
+            f"--vars '{{{{ \"reference_table_uris\": ti.xcom_pull(task_ids=\"resolve_latest_reference_tables\") | tojson }}}}'"
         ),
     )
 
@@ -91,3 +89,5 @@ def reference_to_minio_delta():
     reference_tables = resolve_latest_reference_tables(loaded_files)
 
     (reference_files >> loaded_files >> reference_tables >> dbt_run_stage)
+
+reference_to_minio_delta_dag = reference_to_minio_delta()

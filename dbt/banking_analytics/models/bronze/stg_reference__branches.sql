@@ -3,7 +3,7 @@
 {% set reference_table_uris = var('reference_table_uris', {}) %}
 {% set branches_uri = reference_table_uris.get('branches') %}
 
-{% if not branches_uri %}
+{% if execute and not branches_uri %}
     {% do exceptions.raise_compiler_error('reference_table_uris.branches is required') %}
 {% endif %}
 
