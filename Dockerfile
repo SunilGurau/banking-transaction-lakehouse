@@ -37,3 +37,5 @@ RUN git --version \
 
 # initialize dbt project
 # RUN /home/airflow/dbt-venv/bin/dbt init my_dbt_project
+
+RUN pip install confluent-kafka
