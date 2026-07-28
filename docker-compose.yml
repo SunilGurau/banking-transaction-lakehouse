@@ -256,6 +256,15 @@ services:
     command: scheduler
     restart: unless-stopped
 
+  dashboard:
+    build: ./dashboard
+    container_name: dashboard
+    ports:
+      - "8501:8501"
+    depends_on:
+      - etl-postgres
+    restart: unless-stopped
+
 volumes:
   airflow_metadata_db:
   etl_postgres_data:
