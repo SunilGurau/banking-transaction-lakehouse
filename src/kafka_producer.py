@@ -2,21 +2,20 @@ import os
 import json
 import time
 import glob
-from confluent_kafka import Producer
+import ast
+from kafka import KafkaProducer
 
 # Configuration
 KAFKA_BROKER = 'localhost:9092' # Use 'kafka:29092' if running inside Docker
 TOPIC_NAME = 'banking.transactions.raw'
 STREAMING_DATA_DIR = './data/streaming/'
 
-def delivery_report(err, msg):
-    if err is not None:
-        print(f" Delivery failed: {err}")
-    else:
-        print(f" Sent to {msg.topic()} -> {msg.value().decode('utf-8')[:60]}...")
-
 def stream_transactions():
-    producer = Producer({'bootstrap.servers': KAFKA_BROKER})
+    # Initialize the pure-Python Kafka Producer
+    producer = KafkaProducer(
+        bootstrap_servers=[KAFKA_BROKER],
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    )
     
     files = glob.glob(os.path.join(STREAMING_DATA_DIR, '*.jsonl'))
     if not files:
@@ -29,18 +28,35 @@ def stream_transactions():
         for file_path in files:
             with open(file_path, 'r') as file:
                 for line in file:
-                    record = json.loads(line.strip())
+                    line_clean = line.strip()
+                    if not line_clean:
+                        continue # Skip empty lines
                     
-                    producer.produce(
-                        topic=TOPIC_NAME,
-                        value=json.dumps(record).encode('utf-8'),
-                        callback=delivery_report
-                    )
-                    producer.poll(0)
+                    # 1. Try strict JSON
+                    try:
+                        record = json.loads(line_clean)
+                    except json.decoder.JSONDecodeError:
+                        # 2. Try handling single-quoted Python dicts
+                        try:
+                            record = ast.literal_eval(line_clean)
+                        except (SyntaxError, ValueError):
+                            # 3. Complete garbage data detected! Wrap it safely for the DLQ.
+                            print(" Unparseable garbage data detected! Wrapping for DLQ...")
+                            record = {
+                                "transaction_id": None,
+                                "account_id": None,
+                                "error": "malformed_payload",
+                                "raw_data": line_clean
+                            }
+                    
+                    # Send the safely packaged record to the topic
+                    producer.send(TOPIC_NAME, value=record)
+                    
+                    print(f" Sent to {TOPIC_NAME} -> {str(record)[:60]}...")
                     time.sleep(0.3) # Simulates real-time flow
                     
         producer.flush()
-        print(" Streaming complete.")
+        print("🎉 Streaming complete.")
         
     except KeyboardInterrupt:
         print("\n Stopped manually.")

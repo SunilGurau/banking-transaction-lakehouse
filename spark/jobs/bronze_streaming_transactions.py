@@ -2,16 +2,18 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 
-# Initialize Spark with Delta and S3/MinIO dependencies
+# 1. Added the AWS Java SDK Bundle to the packages list
+# 2. Changed endpoints to localhost for local testing
 spark = SparkSession.builder \
     .appName("Kafka_to_Bronze") \
-    .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1,io.delta:delta-core_2.12:2.4.0,org.apache.hadoop:hadoop-aws:3.3.4") \
+    .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1,io.delta:delta-core_2.12:2.4.0,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262") \
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-    .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
+    .config("spark.hadoop.fs.s3a.endpoint", "http://localhost:9000") \
     .config("spark.hadoop.fs.s3a.access.key", "minioadmin") \
     .config("spark.hadoop.fs.s3a.secret.key", "minioadminpassword") \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
@@ -27,10 +29,10 @@ schema = StructType([
     StructField("timestamp", TimestampType(), True)
 ])
 
-# Read from Kafka
+# Read from Kafka (Updated to localhost for Windows execution)
 kafka_df = spark.readStream \
     .format("kafka") \
-    .option("kafka.bootstrap.servers", "kafka:29092") \
+    .option("kafka.bootstrap.servers", "localhost:9092") \
     .option("subscribe", "banking.transactions.raw") \
     .option("startingOffsets", "earliest") \
     .load()
