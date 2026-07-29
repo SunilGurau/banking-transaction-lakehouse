@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: stg_batch__transactions
+    columns:
+      - name: transaction_id
+        tests: [unique, not_null]   # this MUST be unique post-dedup (generator injects raw dupes)
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_batch__accounts')
+              field: account_id
+      - name: transaction_type_code
+        tests:
+          - accepted_values:
+              values: ['DEP', 'WDR', 'TRF', 'POS', 'FEE', 'REV']
+      - name: status
+        tests:
+          - accepted_values:
+              values: ['SUCCESS', 'FAILED', 'REVERSED', 'PENDING']
+      - name: channel
+        tests:
+          - accepted_values:
+              values: ['BRANCH', 'ATM', 'MOBILE', 'INTERNET_BANKING', 'CARD', 'WALLET']
+
+  - name: stg_batch__accounts
+    columns:
+      - name: account_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_batch__customers')
+              field: customer_id
+      - name: account_status
+        tests:
+          - accepted_values:
+              values: ['ACTIVE', 'DORMANT', 'CLOSED', 'BLOCKED']
+
+  - name: stg_batch__customers
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: risk_band
+        tests:
+          - accepted_values:
+              values: ['LOW', 'MEDIUM', 'HIGH']
+
+  - name: stg_batch__balances
+    columns:
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_batch__accounts')
+              field: account_id
+    tests:
+      # closing_balance must equal opening + credit - debit (rounding-safe)
+      - dbt_utils.expression_is_true:
+          expression: "abs(closing_balance - (opening_balance + credit_total - debit_total)) < 0.01"
+
+  - name: stg_batch__settlements
+    columns:
+      - name: settlement_batch_id
+        tests: [unique, not_null]
+      - name: channel
+        tests:
+          - accepted_values:
+              values: ['BRANCH', 'ATM', 'MOBILE', 'INTERNET_BANKING', 'CARD', 'WALLET']

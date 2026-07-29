@@ -1,0 +1,45 @@
+version: 2
+
+# Bronze = source-aligned, minimally-cast tables. Keep tests light here:
+# just "did the ingestion produce something structurally sane".
+# Heavier business rules belong in silver/gold.
+
+sources:
+  - name: bronze
+    schema: bronze
+    tables:
+      - name: bronze_transactions
+        columns:
+          - name: transaction_id
+            tests: [not_null]
+          - name: account_id
+            tests: [not_null]
+          - name: status
+            tests:
+              - accepted_values:
+                  values: ['SUCCESS', 'FAILED', 'REVERSED', 'PENDING']
+
+      - name: bronze_accounts
+        columns:
+          - name: account_id
+            tests: [not_null]
+          - name: customer_id
+            tests: [not_null]
+          - name: account_status
+            tests:
+              - accepted_values:
+                  values: ['ACTIVE', 'DORMANT', 'CLOSED', 'BLOCKED']
+
+      - name: bronze_customers
+        columns:
+          - name: customer_id
+            tests: [not_null]
+
+      - name: bronze_transaction_events
+        columns:
+          - name: transaction_id
+            tests: [not_null]
+          - name: account_id
+            tests: [not_null]
+          # NOTE: fix the schema in kafka_to_bronze.py first (transaction_type_code
+          # not transaction_type, event_ts not timestamp) or these will falsely fail.

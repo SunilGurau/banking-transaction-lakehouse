@@ -10,7 +10,7 @@ st.set_page_config(page_title="Banking Lakehouse Dashboard", layout="wide")
 # ----------------------------------------------------------------------------
 # CONFIG — flip this to False once real data is flowing through Postgres
 # ----------------------------------------------------------------------------
-USE_MOCK_DATA = True
+USE_MOCK_DATA = False
 
 PG_CONFIG = dict(
     host="etl-postgres",
