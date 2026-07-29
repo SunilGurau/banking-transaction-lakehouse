@@ -39,3 +39,5 @@ RUN git --version \
 # RUN /home/airflow/dbt-venv/bin/dbt init my_dbt_project
 
 RUN pip install kafka-python
+
+RUN pip install pyspark

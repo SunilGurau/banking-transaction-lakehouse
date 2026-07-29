@@ -297,7 +297,7 @@ services:
     networks:
       - banking-lakehouse-net
 
-kafka-producer:
+  kafka-producer:
     build: .
     container_name: kafka-producer
     depends_on:

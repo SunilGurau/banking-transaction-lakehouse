@@ -20,15 +20,18 @@ spark.sparkContext.setLogLevel("WARN")
 
 # Define schema matching your JSONL generator output
 schema = StructType([
+    StructField("event_id", StringType(), True),
     StructField("transaction_id", StringType(), True),
     StructField("account_id", StringType(), True),
+    StructField("customer_id", StringType(), True),
+    StructField("branch_id", StringType(), True),
     StructField("amount", DoubleType(), True),
-    StructField("transaction_type", StringType(), True),
+    StructField("fee_amount", DoubleType(), True),
+    StructField("transaction_type_code", StringType(), True),  # <-- Fixed
     StructField("channel", StringType(), True),
     StructField("status", StringType(), True),
-    StructField("timestamp", TimestampType(), True)
+    StructField("event_ts", StringType(), True)               # <-- Fixed
 ])
-
 # Read from Kafka (Updated to localhost for Windows execution)
 kafka_df = spark.readStream \
     .format("kafka") \

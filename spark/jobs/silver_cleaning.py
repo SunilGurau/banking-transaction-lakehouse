@@ -20,26 +20,22 @@ fraud_stream = validated_stream.filter(col("amount") > 10000)
 # ---------------------------------------------------------
 print("Routing malformed records to DLQ...")
 dlq_query = malformed_stream \
-    .select(to_json(struct("*")).alias("value")) \
     .writeStream \
-    .format("kafka") \
-    .option("kafka.bootstrap.servers", "kafka:29092") \
-    .option("topic", "banking.transactions.dlq") \
-    .option("checkpointLocation", "s3a://silver/_checkpoints/kafka_dlq/") \
-    .start()
+    .format("delta") \
+    .outputMode("append") \
+    .option("checkpointLocation", "s3a://silver/_checkpoints/dlq/") \
+    .start("s3a://silver/dlq_transactions/")
 
 # ---------------------------------------------------------
 # 3. Writing to Kafka: The Validated Topic
 # ---------------------------------------------------------
 print("Routing clean records to Validated topic...")
 validated_query = validated_stream \
-    .select(to_json(struct("*")).alias("value")) \
     .writeStream \
-    .format("kafka") \
-    .option("kafka.bootstrap.servers", "kafka:29092") \
-    .option("topic", "banking.transactions.validated") \
-    .option("checkpointLocation", "s3a://silver/_checkpoints/kafka_validated/") \
-    .start()
+    .format("delta") \
+    .outputMode("append") \
+    .option("checkpointLocation", "s3a://silver/_checkpoints/validated/") \
+    .start("s3a://silver/validated_transactions/")
 
 # ---------------------------------------------------------
 # 4. Writing to Kafka: The Fraud Alerts Topic
