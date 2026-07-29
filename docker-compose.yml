@@ -297,6 +297,20 @@ services:
     networks:
       - banking-lakehouse-net
 
+kafka-producer:
+    build: .
+    container_name: kafka-producer
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BROKER=kafka:29092
+    volumes:
+      - ./data:/opt/airflow/data
+      - ./src:/opt/airflow/src
+    command: python src/kafka_producer.py
+    networks:
+      - banking-lakehouse-net
+
 networks:
   banking-lakehouse-net:
     driver: bridge
