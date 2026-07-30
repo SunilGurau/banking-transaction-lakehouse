@@ -6,6 +6,7 @@ from pathlib import Path
 
 from airflow.decorators import dag, task
 from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils import timezone
 
@@ -23,6 +24,7 @@ DBT_PROJECT_DIR = Path(
 )
 DBT_PROFILES_DIR = Path(os.environ.get("DBT_PROFILES_DIR", "/opt/airflow/dbt"))
 DBT_TARGET = os.environ.get("DBT_TARGET", "spark")
+
 
 def _latest_reference_delta_uri(table_name: str) -> str:
     hook = S3Hook(aws_conn_id="minio")
@@ -42,6 +44,7 @@ def _latest_reference_delta_uri(table_name: str) -> str:
     latest_timestamp = max(timestamps)
     return f"s3a://{LAKEHOUSE_BUCKET}/{prefix}{latest_timestamp}"
 
+
 @dag(
     dag_id="reference_to_minio_delta",
     start_date=timezone.datetime(2026, 1, 1),
@@ -49,6 +52,9 @@ def _latest_reference_delta_uri(table_name: str) -> str:
     catchup=False,
 )
 def reference_to_minio_delta():
+    start = EmptyOperator(task_id="start")
+    end = EmptyOperator(task_id="end")
+
     @task
     def discover_reference_files() -> list[str]:
         reference_directory = Path("/opt/airflow/data/reference")
@@ -79,15 +85,16 @@ def reference_to_minio_delta():
             f"--project-dir {DBT_PROJECT_DIR} "
             f"--profiles-dir {DBT_PROFILES_DIR} "
             f"--target {DBT_TARGET} "
-            f"--select stg_reference__branches dim_branch "
-            f"--vars '{{{{ \"reference_table_uris\": ti.xcom_pull(task_ids=\"resolve_latest_reference_tables\") | tojson }}}}'"
+            f"--select dim_branch"
+            # '--vars \'{"reference_table_uris": {"branches": "s3a://landing/reference/branches/2026-07-26_19-15-18"}}\''
         ),
     )
+    # reference_files = discover_reference_files()
+    # loaded_files = load_reference_data(reference_files)
+    # reference_tables = resolve_latest_reference_tables(loaded_files)
 
-    reference_files = discover_reference_files()
-    loaded_files = load_reference_data(reference_files)
-    reference_tables = resolve_latest_reference_tables(loaded_files)
+    # (reference_files >> loaded_files >> reference_tables >> dbt_run_stage)
+    (start >> dbt_run_stage >> end)
 
-    (reference_files >> loaded_files >> reference_tables >> dbt_run_stage)
 
 reference_to_minio_delta_dag = reference_to_minio_delta()
