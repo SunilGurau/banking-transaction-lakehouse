@@ -135,6 +135,7 @@ services:
         condition: service_healthy
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__EXECUTE_TASKS_NEW_PYTHON_INTERPRETER: "true"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_METADATA_DB_USER:-airflow}:${AIRFLOW_METADATA_DB_PASSWORD:-airflow}@airflow-postgres:5432/${AIRFLOW_METADATA_DB_NAME:-airflow}
       AIRFLOW__CORE__FERNET_KEY: ""
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
@@ -189,6 +190,7 @@ services:
         condition: service_completed_successfully
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__EXECUTE_TASKS_NEW_PYTHON_INTERPRETER: "true"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_METADATA_DB_USER:-airflow}:${AIRFLOW_METADATA_DB_PASSWORD:-airflow}@airflow-postgres:5432/${AIRFLOW_METADATA_DB_NAME:-airflow}
       AIRFLOW__CORE__FERNET_KEY: ""
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
@@ -237,6 +239,7 @@ services:
         condition: service_completed_successfully
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__EXECUTE_TASKS_NEW_PYTHON_INTERPRETER: "true"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_METADATA_DB_USER:-airflow}:${AIRFLOW_METADATA_DB_PASSWORD:-airflow}@airflow-postgres:5432/${AIRFLOW_METADATA_DB_NAME:-airflow}
       AIRFLOW_CONN_ETL_POSTGRES: postgresql://${POSTGRES_USER:-etl_user}:${POSTGRES_PASSWORD:-etl_password}@etl-postgres:5432/${POSTGRES_DB:-etl_db}
       AIRFLOW__CORE__FERNET_KEY: ""
