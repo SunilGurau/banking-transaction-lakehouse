@@ -2,4 +2,4 @@
 logs
 /dbt/logs
 .env
-/src/__pycache__
+__pycache__
