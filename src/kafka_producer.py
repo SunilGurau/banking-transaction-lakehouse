@@ -5,8 +5,9 @@ import glob
 import ast
 from kafka import KafkaProducer
 
+
 # Configuration
-KAFKA_BROKER = 'localhost:9092' # Use 'kafka:29092' if running inside Docker
+KAFKA_BROKER = 'kafka:29092'
 TOPIC_NAME = 'banking.transactions.raw'
 STREAMING_DATA_DIR = './data/streaming/'
 
