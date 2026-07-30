@@ -26,7 +26,9 @@ RUN python -m pip install --no-cache-dir \
         apache-airflow-providers-amazon \
         deltalake \
         pandas \
-        pyarrow
+        pyarrow \
+        kafka-python \
+        pyspark
 
 # Do not prepend the dbt venv to the global PATH.
 # Validate each environment using its explicit executable.
@@ -38,6 +40,3 @@ RUN git --version \
 # initialize dbt project
 # RUN /home/airflow/dbt-venv/bin/dbt init my_dbt_project
 
-RUN pip install kafka-python
-
-RUN pip install pyspark
