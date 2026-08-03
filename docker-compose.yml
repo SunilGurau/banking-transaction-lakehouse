@@ -17,7 +17,8 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-
+    networks:
+      - banking-lakehouse-net
 
   mc-init:
     image: minio/mc:latest
@@ -25,6 +26,8 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    networks:
+      - banking-lakehouse-net
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 minioadmin minioadmin123 &&
@@ -33,6 +36,7 @@ services:
       mc mb -p local/bronze &&
       mc mb -p local/silver &&
       mc mb -p local/gold &&
+      mc mb -p local/banking-lakehouse &&
       echo 'Buckets ready' &&
       exit 0
       "
@@ -52,6 +56,8 @@ services:
       - "4040:4040" # Spark UI
     hostname: spark-thrift
     restart: unless-stopped
+    networks:
+      - banking-lakehouse-net
 
   jupyter:
     image: jupyter/pyspark-notebook:spark-3.5.0
@@ -67,6 +73,8 @@ services:
       minio:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - banking-lakehouse-net
 
   airflow-postgres:
     image: postgres:16
@@ -87,6 +95,8 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - banking-lakehouse-net
 
   etl-postgres:
     image: postgres:16
@@ -110,6 +120,8 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - banking-lakehouse-net
 
   airflow-init:
     build: .
@@ -164,6 +176,8 @@ services:
       --email ${AIRFLOW_ADMIN_EMAIL:-airflow@example.com}
       "
     restart: "no"
+    networks:
+      - banking-lakehouse-net
 
   airflow-webserver:
     build: .
@@ -205,10 +219,13 @@ services:
       - ./data:/opt/airflow/data
       - ./logs:/opt/airflow/logs
       - ./src:/opt/airflow/src
+      - ./spark:/opt/airflow/spark
       - ./plugins:/opt/airflow/plugins
       - ./dbt:/opt/airflow/dbt
     command: webserver
     restart: unless-stopped
+    networks:
+      - banking-lakehouse-net
 
   airflow-scheduler:
     build: .
@@ -251,10 +268,13 @@ services:
       - ./data:/opt/airflow/data
       - ./logs:/opt/airflow/logs
       - ./src:/opt/airflow/src
+      - ./spark:/opt/airflow/spark
       - ./plugins:/opt/airflow/plugins
       - ./dbt:/opt/airflow/dbt
     command: scheduler
     restart: unless-stopped
+    networks:
+      - banking-lakehouse-net
 
   dashboard:
     build: ./dashboard
@@ -264,6 +284,8 @@ services:
     depends_on:
       - etl-postgres
     restart: unless-stopped
+    networks:
+      - banking-lakehouse-net
 
   zookeeper:
       image: confluentinc/cp-zookeeper:7.4.0
@@ -296,18 +318,84 @@ services:
       - kafka_data:/var/lib/kafka/data
     networks:
       - banking-lakehouse-net
+    # BUG FIX: kafka had no healthcheck at all, so every depends_on pointing
+    # at it (even the ones using "condition:" syntax) could only ever wait
+    # for the container process to start, not for the broker to actually be
+    # accepting connections. Broker startup after Zookeeper registration can
+    # take several seconds, which was a likely source of the producer/Spark
+    # jobs' intermittent "NoBrokersAvailable" / connection-refused errors.
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   kafka-producer:
     build: .
     container_name: kafka-producer
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     environment:
       - KAFKA_BROKER=kafka:29092
     volumes:
       - ./data:/opt/airflow/data
       - ./src:/opt/airflow/src
     command: python src/kafka_producer.py
+    networks:
+      - banking-lakehouse-net
+
+  bronze-streaming:
+    build: .
+    container_name: bronze_streaming_worker
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER=kafka:29092
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - JAVA_HOME=/usr/lib/jvm/default-java
+    volumes:
+      - ./src:/opt/airflow/src
+      - ./spark:/opt/airflow/spark
+      - ./data:/opt/airflow/data
+      - ./logs:/opt/airflow/logs
+    command: python /opt/airflow/spark/jobs/bronze_streaming_transactions.py
+    restart: unless-stopped
+    networks:
+      - banking-lakehouse-net
+
+  silver-streaming:
+    build: .
+    container_name: silver_streaming_worker
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      # NOTE: dropped the dependency on spark-thrift here. silver_cleaning.py
+      # never actually talks to the thriftserver (it's a separate JDBC/ODBC
+      # endpoint for BI tools), so this coupling only added an unnecessary
+      # reason for silver-streaming to be blocked on startup. Re-add if you
+      # do have a reason for it I'm not seeing.
+    environment:
+      - KAFKA_BROKER=kafka:29092
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - JAVA_HOME=/usr/lib/jvm/default-java
+    volumes:
+      - ./src:/opt/airflow/src
+      - ./spark:/opt/airflow/spark
+      - ./data:/opt/airflow/data
+      - ./logs:/opt/airflow/logs
+    command: python /opt/airflow/spark/jobs/silver_cleaning.py
+    restart: unless-stopped
     networks:
       - banking-lakehouse-net
 
