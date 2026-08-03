@@ -44,11 +44,24 @@ def load_business_metrics() -> pd.DataFrame:
     return df
 
 
+def load_fraud_alerts() -> pd.DataFrame:
+    conn = get_conn()
+    try:
+        df = pd.read_sql(
+            "SELECT * FROM audit.fraud_alerts ORDER BY received_at DESC LIMIT 500", conn
+        )
+    except Exception:
+        df = pd.DataFrame()
+    finally:
+        conn.close()
+    return df
+
+
 # ----------------------------------------------------------------------------
 # UI
 # ----------------------------------------------------------------------------
 st.sidebar.title("Banking Lakehouse")
-page = st.sidebar.radio("Page", ["Pipeline Health", "Business Metrics"])
+page = st.sidebar.radio("Page", ["Pipeline Health", "Business Metrics", "Fraud/Risk Monitoring"])
 
 if page == "Pipeline Health":
     st.title("Pipeline Health")
@@ -104,7 +117,7 @@ if page == "Pipeline Health":
     else:
         st.info("No failing checks in this data.")
 
-else:
+elif page == "Business Metrics":
     st.title("Business Metrics")
     st.caption("Transaction volume, value, and failure rate by branch and channel")
 
@@ -179,3 +192,42 @@ else:
         barmode="stack",
     )
     st.plotly_chart(fig_d, use_container_width=True)
+
+else:  # Fraud/Risk Monitoring
+    st.title("Fraud/Risk Monitoring")
+    st.caption("Suspicious transactions flagged by the streaming fraud rule (amount > 10,000)")
+
+    df = load_fraud_alerts()
+
+    if df.empty:
+        st.warning(
+            "No fraud alerts yet - run src/fraud_alerts_consumer.py to pull events "
+            "from the banking.fraud.alerts Kafka topic into Postgres."
+        )
+        st.stop()
+
+    df["event_ts"] = pd.to_datetime(df["event_ts"])
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Alerts", len(df))
+    col2.metric("Total Flagged Amount (NPR)", f"{df['amount'].sum():,.0f}")
+    col3.metric("Unique Accounts Flagged", df["account_id"].nunique())
+
+    st.subheader("Recent Alerts")
+    st.dataframe(
+        df[["event_ts", "transaction_id", "account_id", "channel",
+            "merchant_category_code", "amount", "status"]]
+        .sort_values("event_ts", ascending=False)
+        .reset_index(drop=True),
+        use_container_width=True,
+    )
+
+    st.subheader("Alerts by Channel")
+    by_channel = df.groupby("channel").size().reset_index(name="alert_count")
+    fig_e = px.bar(by_channel, x="channel", y="alert_count")
+    st.plotly_chart(fig_e, use_container_width=True)
+
+    st.subheader("Alerts by Merchant Category")
+    by_mcc = df.groupby("merchant_category_code").size().reset_index(name="alert_count")
+    fig_f = px.pie(by_mcc, names="merchant_category_code", values="alert_count")
+    st.plotly_chart(fig_f, use_container_width=True)

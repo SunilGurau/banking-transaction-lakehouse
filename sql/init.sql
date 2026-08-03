@@ -63,9 +63,25 @@ CREATE TABLE IF NOT EXISTS audit.settlement_variance (
 );
 
 -- ---------------------------------------------------------------------
--- DLQ tracking — count of malformed/DLQ'd events per run, for the
--- freshness/operations DQ category.
+-- Fraud/Risk alerts - populated by a Kafka consumer reading
+-- banking.fraud.alerts (see silver cleaning script's fraud_stream).
+-- Feeds the "Fraud/Risk Monitoring" dashboard page.
 -- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS audit.fraud_alerts (
+    alert_id            BIGSERIAL PRIMARY KEY,
+    transaction_id       VARCHAR(100) NOT NULL,
+    account_id           VARCHAR(100),
+    customer_id          VARCHAR(100),
+    channel              VARCHAR(50),
+    merchant_category_code VARCHAR(10),
+    amount               NUMERIC(18,2),
+    status               VARCHAR(20),
+    event_ts             TIMESTAMP,
+    received_at          TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fraud_alerts_time ON audit.fraud_alerts (received_at);
+
 CREATE TABLE IF NOT EXISTS audit.dlq_summary (
     summary_id      BIGSERIAL PRIMARY KEY,
     event_date      DATE NOT NULL,
