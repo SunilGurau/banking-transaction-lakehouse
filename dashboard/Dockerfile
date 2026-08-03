@@ -3,11 +3,12 @@ FROM python:3.12
 WORKDIR /app
 
 RUN pip install --no-cache-dir \
-    streamlit==1.38.0 \
+    deltalake==0.16.0 \
+    pyarrow==15.0.0 \
+    s3fs==2024.2.0 \
     psycopg2-binary==2.9.9 \
-    pandas==2.2.2 \
-    numpy==1.26.4 \
-    plotly==5.22.0
+    plotly==5.19.0 \
+    streamlit==1.32.0
 
 COPY app.py .
 

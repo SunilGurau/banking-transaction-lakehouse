@@ -281,11 +281,30 @@ services:
     container_name: dashboard
     ports:
       - "8501:8501"
+    volumes:
+      # Maps your local dashboard script directly into the container's working directory for hot-reloading
+      # Change "./app.py" to "./dashboard/app.py" if your code file sits inside the /dashboard folder
+      - ./dashboard/app.py:/app/app.py
+    environment:
+      # Postgres Connectivity
+      - POSTGRES_USER=etl_user
+      - POSTGRES_PASSWORD=etl_password
+      - POSTGRES_DB=etl_db
+      - POSTGRES_HOST= etl-postgres
+      - POSTGRES_PORT= 5432
+      # MinIO Object Storage Connectivity
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin123
+      - MINIO_ENDPOINT_URL=http://minio:9000
     depends_on:
-      - etl-postgres
+      etl-postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - banking-lakehouse-net
+
 
   zookeeper:
       image: confluentinc/cp-zookeeper:7.4.0

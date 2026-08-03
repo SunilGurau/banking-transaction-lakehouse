@@ -258,3 +258,4 @@ else:
         barmode="stack",
     )
     st.plotly_chart(fig_d, use_container_width=True)
+    
