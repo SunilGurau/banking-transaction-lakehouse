@@ -180,13 +180,48 @@
 #     )
 #     print("completed writing to delta")
 
+# ----------------------------------------------------------
 
+
+# from datetime import datetime
+
+# from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+# from deltalake import write_deltalake
+# from pyarrow import csv
+
+
+# def load_reference_csvs_to_minio(file, prefix: str) -> None:
+#     hook = S3Hook(aws_conn_id="minio")
+
+#     if not hook.check_for_bucket("landing"):
+#         hook.create_bucket(bucket_name="landing")
+
+#     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+#     print("reading csv")
+#     table = csv.read_csv(file)
+#     print(f"completed reading csv ({table.num_rows:,} rows)")
+
+#     print("writing to delta")
+#     write_deltalake(
+#         f"s3://landing/{prefix}/{file.stem}/{timestamp}",
+#         table,
+#         mode="overwrite",
+#         storage_options={
+#             "AWS_ENDPOINT_URL": "http://minio:9000",
+#             "AWS_ACCESS_KEY_ID": "minioadmin",
+#             "AWS_SECRET_ACCESS_KEY": "minioadmin123",
+#             "AWS_ALLOW_HTTP": "true",
+#             "AWS_S3_ADDRESSING_STYLE": "path",
+#         },
+#     )
+#     print("completed writing to delta")
+
+# ----------------------------------------------------------
 
 from datetime import datetime
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from deltalake import write_deltalake
-from pyarrow import csv
 
 
 def load_reference_csvs_to_minio(file, prefix: str) -> None:
@@ -195,23 +230,15 @@ def load_reference_csvs_to_minio(file, prefix: str) -> None:
     if not hook.check_for_bucket("landing"):
         hook.create_bucket(bucket_name="landing")
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    date = datetime.now().strftime("%Y-%m-%d")
 
-    print("reading csv")
-    table = csv.read_csv(file)
-    print(f"completed reading csv ({table.num_rows:,} rows)")
+    object_key = f"{prefix}/{date}/{file.name}"
 
-    print("writing to delta")
-    write_deltalake(
-        f"s3://landing/{prefix}/{file.stem}/{timestamp}",
-        table,
-        mode="overwrite",
-        storage_options={
-            "AWS_ENDPOINT_URL": "http://minio:9000",
-            "AWS_ACCESS_KEY_ID": "minioadmin",
-            "AWS_SECRET_ACCESS_KEY": "minioadmin123",
-            "AWS_ALLOW_HTTP": "true",
-            "AWS_S3_ADDRESSING_STYLE": "path",
-        },
+    print("uploading csv to MinIO")
+    hook.load_file(
+        filename=str(file),
+        key=object_key,
+        bucket_name="landing",
+        replace=True,  # Overwrite if the object already exists
     )
-    print("completed writing to delta")
+    print("completed uploading csv")
