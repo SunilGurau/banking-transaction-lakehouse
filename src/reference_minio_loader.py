@@ -234,11 +234,17 @@ def load_reference_csvs_to_minio(file, prefix: str) -> None:
 
     object_key = f"{prefix}/{date}/{file.name}"
 
-    print("uploading csv to MinIO")
-    hook.load_file(
-        filename=str(file),
-        key=object_key,
-        bucket_name="landing",
-        replace=True,  # Overwrite if the object already exists
-    )
-    print("completed uploading csv")
+    if not hook.check_for_key(object_key, bucket_name="landing"):
+        print(f"Uploading {file} to landing bucket with key {object_key}")
+        hook.load_file(
+            filename=str(file),
+            key=object_key,
+            bucket_name="landing",
+            replace=True,  # Overwrite if the object already exists
+        )
+        print("completed uploading csv")
+
+    else:
+        print(
+            f"File {file} already exists in landing bucket with key {object_key}, skipping upload."
+        )

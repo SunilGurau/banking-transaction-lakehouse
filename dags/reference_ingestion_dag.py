@@ -13,6 +13,7 @@ if str(SRC_DIR) not in sys.path:
 
 REFERENCE_STAGE_PREFIX = "reference"
 
+
 @dag(
     dag_id="reference_ingestion",
     start_date=timezone.datetime(2026, 1, 1),
@@ -43,5 +44,6 @@ def reference_ingestion():
     loaded_files = load_reference_data(reference_files)
 
     start >> reference_files >> loaded_files >> end
+
 
 reference_ingestion_dag = reference_ingestion()
