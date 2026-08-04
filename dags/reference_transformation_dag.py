@@ -55,7 +55,9 @@ def reference_transformation():
             f"--project-dir {DBT_PROJECT_DIR} "
             f"--profiles-dir {DBT_PROFILES_DIR} "
             f"--target {DBT_TARGET} "
-            f"--select stg_reference__branches+ stg_reference__merchant_categories+ stg_reference__transaction_types+ "
+            # f"--select stg_reference__branches+ stg_reference__merchant_categories+ stg_reference__transaction_types+ "
+            # f"--select stg_reference_transaction_types+ "
+            f"--select stg_reference__transaction_types+ "
             f'--vars \'{{{{ {{"reference_table_uris": ti.xcom_pull(task_ids="resolve_latest_reference_tables")}} | tojson }}}}\''
         ),
     )

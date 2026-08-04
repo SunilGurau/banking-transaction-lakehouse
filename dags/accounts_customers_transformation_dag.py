@@ -14,8 +14,12 @@ if str(SRC_DIR) not in sys.path:
 
 from utils import latest_delta_uri
 
-DBT_EXECUTABLE = Path(os.environ.get("DBT_EXECUTABLE", "/home/airflow/dbt-venv/bin/dbt"))
-DBT_PROJECT_DIR = Path(os.environ.get("DBT_PROJECT_DIR", "/opt/airflow/dbt/banking_analytics"))
+DBT_EXECUTABLE = Path(
+    os.environ.get("DBT_EXECUTABLE", "/home/airflow/dbt-venv/bin/dbt")
+)
+DBT_PROJECT_DIR = Path(
+    os.environ.get("DBT_PROJECT_DIR", "/opt/airflow/dbt/banking_analytics")
+)
 DBT_PROFILES_DIR = Path(os.environ.get("DBT_PROFILES_DIR", "/opt/airflow/dbt"))
 DBT_TARGET = os.environ.get("DBT_TARGET", "spark")
 
@@ -30,6 +34,7 @@ DBT_TARGET = os.environ.get("DBT_TARGET", "spark")
 def accounts_customers_transformation():
     @task
     def resolve_latest_tables() -> dict[str, str]:
+
         return {
             "accounts": latest_delta_uri("accounts", "accounts"),
             "customers": latest_delta_uri("customers", "customers"),
@@ -42,12 +47,13 @@ def accounts_customers_transformation():
             f"--project-dir {DBT_PROJECT_DIR} "
             f"--profiles-dir {DBT_PROFILES_DIR} "
             f"--target {DBT_TARGET} "
-            f"--select stg_batch__customers stg_batch__accounts dim_customer dim_account "
+            f"--select stg_batch__customers+ stg_batch__accounts+ "
             f'--vars \'{{{{ {{"batch_table_uris": ti.xcom_pull(task_ids="resolve_latest_tables")}} | tojson }}}}\''
         ),
     )
 
     resolved_tables = resolve_latest_tables()
     resolved_tables >> dbt_run_stage
+
 
 accounts_customers_transformation_dag = accounts_customers_transformation()
