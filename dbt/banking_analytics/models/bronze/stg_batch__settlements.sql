@@ -1,4 +1,4 @@
-{{ config(materialized='table') }}
+{{ config(materialized='incremental', incremental_strategy='append') }}
 
 {% set batch_table_uris = var('batch_table_uris', {}) %}
 {% set settlements_uri = batch_table_uris.get('settlements') %}
@@ -7,4 +7,4 @@
     {% do exceptions.raise_compiler_error('batch_table_uris.settlements is required') %}
 {% endif %}
 
-select * from delta.`{{ settlements_uri | default('dummy', true) }}`
+select * from csv.`{{ settlements_uri | default('dummy', true) }}`

@@ -10,6 +10,7 @@ SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+
 @dag(
     dag_id="accounts_customers_ingestion",
     start_date=timezone.datetime(2026, 1, 1),
@@ -34,5 +35,6 @@ def accounts_customers_ingestion():
         return results
 
     loaded_files = load_accounts_and_customers()
+
 
 accounts_customers_ingestion_dag = accounts_customers_ingestion()

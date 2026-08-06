@@ -12,7 +12,7 @@ SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from utils import latest_delta_uri
+from utils import latest_snapshot_file_uri
 
 DBT_EXECUTABLE = Path(
     os.environ.get("DBT_EXECUTABLE", "/home/airflow/dbt-venv/bin/dbt")
@@ -27,17 +27,16 @@ DBT_TARGET = os.environ.get("DBT_TARGET", "spark")
 @dag(
     dag_id="accounts_customers_transformation",
     start_date=timezone.datetime(2026, 1, 1),
-    schedule=None,
+    schedule="@daily",
     catchup=False,
     tags=["batch", "transformation", "accounts", "customers", "dbt"],
 )
 def accounts_customers_transformation():
     @task
     def resolve_latest_tables() -> dict[str, str]:
-
         return {
-            "accounts": latest_delta_uri("accounts", "accounts"),
-            "customers": latest_delta_uri("customers", "customers"),
+            "accounts": latest_snapshot_file_uri("accounts", "account_snapshot_"),
+            "customers": latest_snapshot_file_uri("customers", "customer_snapshot_"),
         }
 
     dbt_run_stage = BashOperator(

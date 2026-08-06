@@ -14,20 +14,24 @@ if str(SRC_DIR) not in sys.path:
 @dag(
     dag_id="balances_ingestion",
     start_date=timezone.datetime(2026, 1, 1),
-    schedule=None,
-    catchup=False,
+    schedule="0 0 * * *",
+    catchup=True,
     tags=["batch", "ingestion", "balances"],
+    max_active_runs=1,
 )
 def balances_ingestion():
     @task
-    def load_balances():
+    def load_balances(**kwargs):
         from reference_minio_loader import load_reference_csvs_to_minio
 
+        logical_date = kwargs["logical_date"].date()
+        print(f"Loading balances for logical date: {logical_date}")
+
         folder = Path("/opt/airflow/data/batch/balances")
-        results = []
-        for csv_file in sorted(folder.glob("*.csv")):
-            results.append(load_reference_csvs_to_minio(csv_file, prefix="balances"))
-        return results
+        file_path = folder / f"account_balances_{logical_date}.csv"
+        print(f"Loading balances from file: {file_path}")
+
+        return load_reference_csvs_to_minio(file_path, prefix="balances")
 
     loaded_files = load_balances()
 

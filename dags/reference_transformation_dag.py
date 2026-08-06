@@ -13,7 +13,6 @@ SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from utils import latest_delta_uri
 
 DBT_EXECUTABLE = Path(
     os.environ.get("DBT_EXECUTABLE", "/home/airflow/dbt-venv/bin/dbt")
@@ -38,14 +37,11 @@ def reference_transformation():
 
     @task
     def resolve_latest_reference_tables() -> dict[str, str]:
-        # Using fixed table 'branches' based on previous dbt config in reference_dag
-        tables = [
-            "branches",
-            "merchant_categories",
-            "transaction_types",
-        ]
-
-        return {table: latest_delta_uri("reference", table) for table in tables}
+        return {
+            "branches": "s3a://landing-zone/reference/branches.csv",
+            "merchant_categories": "s3a://landing-zone/reference/merchant_categories.csv",
+            "transaction_types": "s3a://landing-zone/reference/transaction_types.csv",
+        }
 
     dbt_run_stage = BashOperator(
         task_id="run_reference_dbt",
