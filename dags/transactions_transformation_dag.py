@@ -45,7 +45,7 @@ def transactions_transformation():
     dbt_run_stage = BashOperator(
         task_id="run_transactions_dbt",
         bash_command=(
-            "echo 'Running transactions dbt models with the following variables:' && "
+            "echo 'Transaction run gardai xum varaiables herda:' && "
             f"{DBT_EXECUTABLE} run "
             f"--project-dir {DBT_PROJECT_DIR} "
             f"--profiles-dir {DBT_PROFILES_DIR} "

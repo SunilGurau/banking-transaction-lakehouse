@@ -7,4 +7,17 @@
     {% do exceptions.raise_compiler_error('batch_table_uris.transactions is required') %}
 {% endif %}
 
-select * from csv.`{{ transactions_uri | default('dummy', true) }}`
+-- Create a temporary view to configure the CSV reader options
+{% if execute %}
+    {% call statement('create_temp_view', auto_begin=false) %}
+        CREATE OR REPLACE TEMPORARY VIEW temp_transactions_source
+        USING csv
+        OPTIONS (
+            path '{{ transactions_uri }}',
+            header 'true',
+            inferSchema 'true'
+        )
+    {% endcall %}
+{% endif %}
+
+SELECT * FROM temp_transactions_source
