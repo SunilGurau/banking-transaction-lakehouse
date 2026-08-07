@@ -484,19 +484,37 @@ services:
       exit 0
       "
 
+  # spark-thrift:
+  #   build:
+  #     context: ./spark
+  #     dockerfile: Dockerfile
+  #   container_name: spark-thrift
+  #   mem_limit: 2048m
+  #   mem_reservation: 1024m
+  #   cpus: "1.50"
+  #   # Opt-in: `docker compose up` (no flags) won't start this. It also
+  #   # can't see bronze-streaming's/silver-streaming's tables yet (no shared
+  #   # metastore), so there's little reason to pay for it running by
+  #   # default. Start explicitly with: docker compose --profile tools up -d
+  #   profiles: ["tools"]
+  #   depends_on:
+  #     minio:
+  #       condition: service_healthy
+  #     mc-init:
+  #       condition: service_completed_successfully
+  #   ports:
+  #     - "10000:10000" # Thrift JDBC/ODBC
+  #     - "4040:4040" # Spark UI
+  #   hostname: spark-thrift
+  #   restart: unless-stopped
+  #   networks:
+  #     - banking-lakehouse-net
+
   spark-thrift:
     build:
       context: ./spark
       dockerfile: Dockerfile
     container_name: spark-thrift
-    mem_limit: 2048m
-    mem_reservation: 1024m
-    cpus: "1.50"
-    # Opt-in: `docker compose up` (no flags) won't start this. It also
-    # can't see bronze-streaming's/silver-streaming's tables yet (no shared
-    # metastore), so there's little reason to pay for it running by
-    # default. Start explicitly with: docker compose --profile tools up -d
-    profiles: ["tools"]
     depends_on:
       minio:
         condition: service_healthy

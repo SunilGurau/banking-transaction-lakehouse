@@ -37,6 +37,7 @@ DBT_VARS_TEMPLATE = '{{ {"batch_table_uris": {"transactions": ti.xcom_pull(task_
 def transactions_transformation():
     @task
     def resolve_transaction_file(**kwargs) -> str:
+        print("Resolving the latest transactions file for the current logical date...")
         logical_date = kwargs["logical_date"].date()
         filename = f"transactions_{logical_date}.csv"
         return latest_incremental_file_uri("transactions", filename)
@@ -44,6 +45,7 @@ def transactions_transformation():
     dbt_run_stage = BashOperator(
         task_id="run_transactions_dbt",
         bash_command=(
+            "echo 'Running transactions dbt models with the following variables:' && "
             f"{DBT_EXECUTABLE} run "
             f"--project-dir {DBT_PROJECT_DIR} "
             f"--profiles-dir {DBT_PROFILES_DIR} "
