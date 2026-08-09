@@ -20,3 +20,19 @@ CREATE TABLE audit.fraud_alerts (
     rule_triggered VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Table for storing Data Quality check results
+CREATE TABLE IF NOT EXISTS audit.dq_check_results (
+    id SERIAL PRIMARY KEY,
+    run_id VARCHAR(255),
+    dag_id VARCHAR(255),
+    layer VARCHAR(50),
+    table_name VARCHAR(255),
+    check_name VARCHAR(255),
+    check_type VARCHAR(100),
+    status VARCHAR(20),
+    row_count BIGINT DEFAULT 0,
+    failed_count BIGINT DEFAULT 0,
+    details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

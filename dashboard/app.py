@@ -35,7 +35,7 @@ def load_dq_check_results() -> pd.DataFrame:
     try:
         conn = get_conn()
         df = pd.read_sql(
-            "SELECT * FROM audit.dq_check_results ORDER BY checked_at DESC LIMIT 500", conn
+            "SELECT * FROM audit.dq_check_results ORDER BY created_at DESC LIMIT 500", conn
         )
         conn.close()
         return df
@@ -95,9 +95,9 @@ if page == "Pipeline Health":
         st.warning("No DQ check results found in audit.dq_check_results. Ensure test_dq_local.py or your ingestion DAG has executed.")
         st.stop()
 
-    df["checked_at"] = pd.to_datetime(df["checked_at"])
+    df["created_at"] = pd.to_datetime(df["created_at"])
 
-    latest_run_id = df.sort_values("checked_at", ascending=False)["run_id"].iloc[0]
+    latest_run_id = df.sort_values("created_at", ascending=False)["run_id"].iloc[0]
     latest = df[df["run_id"] == latest_run_id]
 
     col1, col2, col3, col4 = st.columns(4)
@@ -117,7 +117,7 @@ if page == "Pipeline Health":
 
     st.subheader("Failure Trend Over Time")
     trend = (
-        df.groupby([df["checked_at"].dt.date.rename("check_date"), "status"])
+        df.groupby([df["created_at"].dt.date.rename("check_date"), "status"])
         .size()
         .reset_index(name="count")
     )
