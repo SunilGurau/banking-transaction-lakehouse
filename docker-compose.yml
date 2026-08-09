@@ -2,9 +2,9 @@ services:
   minio:
     image: minio/minio:latest
     container_name: lakehouse_minio
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: "0.50"
+    mem_limit: 2g
+    mem_reservation: 1g
+    cpus: "1.50"
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}

@@ -47,7 +47,7 @@ def settlements_transformation():
             f"--project-dir {DBT_PROJECT_DIR} "
             f"--profiles-dir {DBT_PROFILES_DIR} "
             f"--target {DBT_TARGET} "
-            f"--select stg_batch__settlements silver_settlement "
+            f"--select stg_batch__settlements "
             f"--vars '{DBT_VARS_TEMPLATE}'"
         ),
     )

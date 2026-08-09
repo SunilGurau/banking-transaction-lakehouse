@@ -1,4 +1,8 @@
-{{ config(materialized='incremental', incremental_strategy='append') }}
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key='transaction_id'
+) }}
 
 {% set batch_table_uris = var('batch_table_uris', {}) %}
 {% set transactions_uri = batch_table_uris.get('transactions') %}
@@ -20,4 +24,5 @@
     {% endcall %}
 {% endif %}
 
-SELECT * FROM temp_transactions_source
+SELECT *
+FROM temp_transactions_source
