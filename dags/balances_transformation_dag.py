@@ -47,7 +47,7 @@ def balances_transformation():
             f"--project-dir {DBT_PROJECT_DIR} "
             f"--profiles-dir {DBT_PROFILES_DIR} "
             f"--target {DBT_TARGET} "
-            f"--select stg_batch__balances silver_daily_account_balance "
+            f"--select stg_batch__balances  "
             f"--vars '{DBT_VARS_TEMPLATE}'"
         ),
     )
