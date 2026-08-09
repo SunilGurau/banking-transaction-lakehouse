@@ -2,9 +2,9 @@ services:
   minio:
     image: minio/minio:latest
     container_name: lakehouse_minio
-    mem_limit: 2g
-    mem_reservation: 1g
-    cpus: "1.50"
+    mem_limit: 512m
+    mem_reservation: 256m
+    cpus: "0.50"
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
@@ -258,12 +258,9 @@ services:
   airflow-scheduler:
     build: .
     container_name: airflow_scheduler
-    # mem_limit: 1024m
-    # mem_reservation: 512m
-    # cpus: "1.00"
-    mem_limit: 2g
-    mem_reservation: 1g
-    cpus: "2.00"
+    mem_limit: 1024m
+    mem_reservation: 512m
+    cpus: "1.00"
     depends_on:
       minio:
         condition: service_started
@@ -342,19 +339,20 @@ services:
     networks:
       - banking-lakehouse-net
 
+
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.4.0
-    container_name: zookeeper
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: "0.50"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
-    networks:
-      - banking-lakehouse-net
+      image: confluentinc/cp-zookeeper:7.4.0
+      container_name: zookeeper
+      mem_limit: 512m
+      mem_reservation: 256m
+      cpus: "0.50"
+      environment:
+        ZOOKEEPER_CLIENT_PORT: 2181
+        ZOOKEEPER_TICK_TIME: 2000
+      ports:
+        - "2181:2181"
+      networks:
+        - banking-lakehouse-net
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -386,13 +384,7 @@ services:
     # take several seconds, which was a likely source of the producer/Spark
     # jobs' intermittent "NoBrokersAvailable" / connection-refused errors.
     healthcheck:
-      test:
-        [
-          "CMD",
-          "kafka-broker-api-versions",
-          "--bootstrap-server",
-          "localhost:9092",
-        ]
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -501,6 +493,8 @@ services:
 networks:
   banking-lakehouse-net:
     driver: bridge
+
+  
 
 volumes:
   airflow_metadata_db:

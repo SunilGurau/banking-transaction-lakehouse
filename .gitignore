@@ -3,4 +3,6 @@ logs
 /dbt/logs
 .env
 __pycache__
- minio-data/.minio.sys
+minio-data/
+airflow.cfg
+airflow.db
