@@ -277,3 +277,4 @@ else:
         by_mcc = df.groupby("merchant_category_code").size().reset_index(name="alert_count")
         fig_f = px.pie(by_mcc, names="merchant_category_code", values="alert_count", hole=0.3)
         st.plotly_chart(fig_f, use_container_width=True)
+
