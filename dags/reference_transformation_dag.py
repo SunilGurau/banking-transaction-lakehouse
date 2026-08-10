@@ -38,14 +38,15 @@ def reference_transformation():
     @task
     def resolve_latest_reference_tables() -> dict[str, str]:
         return {
-            "branches": "s3a://landing-zone/reference/branches.csv",
-            "merchant_categories": "s3a://landing-zone/reference/merchant_categories.csv",
-            "transaction_types": "s3a://landing-zone/reference/transaction_types.csv",
+            "branches": "s3a://landing/reference/2026-08-08/branches.csv",
+            "merchant_categories": "s3a://landing/reference/2026-08-08/merchant_categories.csv",
+            "transaction_types": "s3a://landing/reference/2026-08-08/transaction_types.csv",
         }
 
     dbt_run_stage = BashOperator(
         task_id="run_reference_dbt",
         bash_command=(
+            "echo Hello"
             'echo \'{{ {"reference_table_uris": ti.xcom_pull(task_ids="resolve_latest_reference_tables")} | tojson }}\' && '
             f"{DBT_EXECUTABLE} run "
             f"--project-dir {DBT_PROJECT_DIR} "
@@ -53,7 +54,7 @@ def reference_transformation():
             f"--target {DBT_TARGET} "
             # f"--select stg_reference__branches+ stg_reference__merchant_categories+ stg_reference__transaction_types+ "
             # f"--select stg_reference_transaction_types+ "
-            f"--select stg_reference__transaction_types+ "
+            f"--select stg_reference__transaction_types "
             f'--vars \'{{{{ {{"reference_table_uris": ti.xcom_pull(task_ids="resolve_latest_reference_tables")}} | tojson }}}}\''
         ),
     )

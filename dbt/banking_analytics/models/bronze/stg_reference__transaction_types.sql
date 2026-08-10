@@ -7,8 +7,21 @@
     {% do exceptions.raise_compiler_error('reference_table_uris.transaction_types is required') %}
 {% endif %}
 
+
+{% if execute %}
+    {% call statement('create_temp_view', auto_begin=false) %}
+        CREATE OR REPLACE TEMPORARY VIEW temp_transaction_types_source
+        USING csv
+        OPTIONS (
+            path '{{transaction_types_uri}}',
+            header 'true',
+            inferSchema 'true'
+        );
+    {% endcall %}
+{% endif %}
+
 select
     transaction_type_code,
     transaction_type_name,
     balance_direction
-from delta.`{{ transaction_types_uri }}`
+from temp_transaction_types_source

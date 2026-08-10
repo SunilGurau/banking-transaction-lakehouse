@@ -7,11 +7,18 @@
     {% do exceptions.raise_compiler_error('reference_table_uris.branches is required') %}
 {% endif %}
 
-select
-    branch_id,
-    branch_name,
-    province,
-    region,
-    opened_date,
-    cast(is_active as boolean) as is_active
-from delta.`{{ branches_uri }}`
+
+{% if execute %}
+    {% call statement('create_temp_view', auto_begin=false) %}
+        CREATE OR REPLACE TEMPORARY VIEW temp_branches_source
+        USING csv
+        OPTIONS (
+            path '{{branches_uri}}',
+            header 'true',
+            inferSchema 'true'
+        );
+    {% endcall %}
+{% endif %}
+
+select *
+from temp_branches_source
