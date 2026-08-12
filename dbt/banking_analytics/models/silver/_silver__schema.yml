@@ -1,0 +1,173 @@
+version: 2
+
+models:
+  - name: silver_customer
+    description: >
+      Cleaned and deduplicated customer dimension data. One row per customer
+      (latest snapshot wins). Sourced from batch customer snapshot CSVs.
+    columns:
+      - name: customer_id
+        description: Natural key — unique customer identifier.
+        tests:
+          - unique
+          - not_null
+      - name: customer_name
+        description: Full customer name.
+        tests:
+          - not_null
+      - name: segment
+        description: Customer segment classification.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['RETAIL', 'SME', 'PREMIUM', 'STUDENT', 'SENIOR']
+      - name: risk_band
+        description: Customer risk classification.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['LOW', 'MEDIUM', 'HIGH']
+      - name: province
+        description: Customer province.
+        tests:
+          - not_null
+      - name: is_active
+        description: Whether the customer is currently active.
+        tests:
+          - not_null
+
+  - name: silver_account
+    description: >
+      Cleaned and deduplicated account data. One row per account
+      (latest snapshot wins). Sourced from batch account snapshot CSVs.
+    columns:
+      - name: account_id
+        description: Natural key — unique account identifier.
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: FK to silver_customer.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('silver_customer')
+              field: customer_id
+      - name: branch_id
+        description: FK to the branch where account was opened.
+        tests:
+          - not_null
+      - name: account_type
+        description: Account type classification.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['SAVINGS', 'CURRENT', 'SALARY', 'LOAN', 'WALLET']
+      - name: account_status
+        description: Current account status.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ACTIVE', 'DORMANT', 'CLOSED', 'BLOCKED']
+
+  - name: silver_transaction
+    description: >
+      Cleaned and deduplicated transaction data. One row per unique transaction.
+      Intentional duplicates from the source are removed. Amounts validated >= 0.
+    columns:
+      - name: transaction_id
+        description: Natural key — unique transaction identifier.
+        tests:
+          - unique
+          - not_null
+      - name: account_id
+        description: FK to silver_account.
+        tests:
+          - not_null
+      - name: customer_id
+        description: FK to silver_customer.
+        tests:
+          - not_null
+      - name: branch_id
+        description: FK to branch.
+        tests:
+          - not_null
+      - name: transaction_date
+        description: Date of the transaction.
+        tests:
+          - not_null
+      - name: transaction_type_code
+        description: Transaction type code FK.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['DEP', 'WDR', 'TRF', 'POS', 'FEE', 'REV']
+      - name: channel
+        description: Channel through which transaction was initiated.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['BRANCH', 'ATM', 'MOBILE', 'INTERNET_BANKING', 'CARD', 'WALLET']
+      - name: status
+        description: Transaction outcome status.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['SUCCESS', 'FAILED', 'REVERSED', 'PENDING']
+      - name: amount
+        description: Transaction amount in NPR.
+        tests:
+          - not_null
+
+  - name: silver_daily_account_balance
+    description: >
+      Cleaned daily account balance snapshot. One row per account per day.
+      Includes a validation flag checking closing = opening + credits - debits.
+    columns:
+      - name: account_id
+        description: FK to silver_account.
+        tests:
+          - not_null
+      - name: balance_date
+        description: Date of the balance snapshot.
+        tests:
+          - not_null
+      - name: opening_balance
+        tests:
+          - not_null
+      - name: closing_balance
+        tests:
+          - not_null
+      - name: is_balance_valid
+        description: >
+          True if closing_balance ≈ opening_balance + credit_total - debit_total
+          (within 0.01 tolerance).
+    tests:
+      - unique:
+          column_name: "concat(account_id, '-', cast(balance_date as string))"
+
+  - name: silver_settlement
+    description: >
+      Cleaned settlement data. One row per settlement batch.
+      Sourced from daily settlement CSVs.
+    columns:
+      - name: settlement_batch_id
+        description: Natural key — unique settlement batch identifier.
+        tests:
+          - unique
+          - not_null
+      - name: settlement_date
+        tests:
+          - not_null
+      - name: channel
+        tests:
+          - not_null
+      - name: transaction_type_code
+        tests:
+          - not_null
+      - name: settled_transaction_count
+        tests:
+          - not_null
+      - name: settled_gross_amount
+        tests:
+          - not_null

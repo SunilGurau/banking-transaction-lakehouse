@@ -174,9 +174,10 @@ def latest_snapshot_file_uri(
     ]
 
     if not matching_keys:
-        raise FileNotFoundError(
-            f"No snapshot file starting with {filename_prefix} found under s3a://{bucket_name}/{prefix_str}"
-        )
+        # raise FileNotFoundError(
+        #     f"No snapshot file starting with {filename_prefix} found under s3a://{bucket_name}/{prefix_str}"
+        # )
+        return None
 
     latest_snapshot_date = max(snapshot_date for snapshot_date, _ in matching_keys)
     latest_keys = [
@@ -200,9 +201,7 @@ def latest_incremental_file_uri(
     matching_keys = [key for key in keys if key.endswith(f"/{filename}")]
 
     if not matching_keys:
-        raise FileNotFoundError(
-            f"No file named {filename} found under s3a://{bucket_name}/{prefix_str}"
-        )
+        return None
 
     latest_ingestion_date = max(key.split("/")[-2] for key in matching_keys)
 

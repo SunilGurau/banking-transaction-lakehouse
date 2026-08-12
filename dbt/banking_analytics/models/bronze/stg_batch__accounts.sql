@@ -7,4 +7,16 @@
     {% do exceptions.raise_compiler_error('batch_table_uris.accounts is required') %}
 {% endif %}
 
-select * from delta.`{{ accounts_uri | default('dummy', true) }}`
+{% if execute %}
+    {% call statement('create_temp_view', auto_begin=false) %}
+        CREATE OR REPLACE TEMPORARY VIEW temp_accounts_source
+        USING csv
+        OPTIONS (
+            path '{{accounts_uri}}',
+            header 'true',
+            inferSchema 'true'
+        );
+    {% endcall %}
+{% endif %}
+
+select * from temp_accounts_source

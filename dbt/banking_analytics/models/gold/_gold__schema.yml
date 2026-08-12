@@ -1,0 +1,250 @@
+version: 2
+
+models:
+  # ─── Dimensions ────────────────────────────────────────────────────────
+
+  - name: dim_customer
+    description: >
+      Customer dimension. One row per customer with surrogate key.
+      Sourced from silver_customer (latest snapshot, current-state).
+    columns:
+      - name: customer_key
+        description: Surrogate key.
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Natural key — unique customer identifier.
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_account
+    description: >
+      Account dimension. One row per account with surrogate key.
+      Sourced from silver_account (latest snapshot, current-state).
+    columns:
+      - name: account_key
+        description: Surrogate key.
+        tests:
+          - unique
+          - not_null
+      - name: account_id
+        description: Natural key — unique account identifier.
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: FK to dim_customer.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+
+  - name: dim_branch
+    description: >
+      Branch dimension. One row per branch with surrogate key.
+      Sourced from bronze reference branches table.
+    columns:
+      - name: branch_key
+        description: Surrogate key.
+        tests:
+          - unique
+          - not_null
+      - name: branch_id
+        description: Natural key — unique branch identifier.
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_channel
+    description: >
+      Channel dimension. One row per transaction channel with surrogate key.
+      Built from distinct channels in silver_transaction.
+    columns:
+      - name: channel_key
+        description: Surrogate key.
+        tests:
+          - unique
+          - not_null
+      - name: channel_code
+        description: Channel code (BRANCH, ATM, MOBILE, etc.).
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_transaction_type
+    description: >
+      Transaction type dimension. One row per transaction type with surrogate key.
+      Sourced from bronze reference transaction types table.
+    columns:
+      - name: transaction_type_key
+        description: Surrogate key.
+        tests:
+          - unique
+          - not_null
+      - name: transaction_type_code
+        description: Natural key — transaction type code.
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_merchant_category
+    description: >
+      Merchant category dimension. One row per MCC with surrogate key.
+      Sourced from bronze reference merchant categories table.
+    columns:
+      - name: merchant_category_key
+        description: Surrogate key.
+        tests:
+          - unique
+          - not_null
+      - name: merchant_category_code
+        description: Natural key — merchant category code.
+        tests:
+          - unique
+          - not_null
+      - name: risk_category
+        description: Risk classification (LOW, MEDIUM, HIGH).
+        tests:
+          - accepted_values:
+              values: ['LOW', 'MEDIUM', 'HIGH']
+
+  - name: dim_date
+    description: >
+      Date dimension. Generated date spine from 2025-01-01 to 2027-12-31.
+      Includes calendar attributes, weekend flag, and fiscal year approximation.
+    columns:
+      - name: date_key
+        description: Surrogate key in YYYYMMDD integer format.
+        tests:
+          - unique
+          - not_null
+      - name: full_date
+        description: The actual date value.
+        tests:
+          - unique
+          - not_null
+
+  # ─── Facts ─────────────────────────────────────────────────────────────
+
+  - name: fact_transaction
+    description: >
+      Core transaction fact table. One row per unique transaction.
+      Grain: transaction_id. Contains amount, fee, net_amount, and FK references
+      to all dimensions for slicing by branch, channel, type, date, MCC, customer.
+    columns:
+      - name: transaction_id
+        description: Primary key — unique transaction identifier.
+        tests:
+          - unique
+          - not_null
+      - name: account_id
+        description: FK to dim_account.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_account')
+              field: account_id
+      - name: customer_id
+        description: FK to dim_customer.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: branch_id
+        description: FK to dim_branch.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_branch')
+              field: branch_id
+      - name: transaction_type_code
+        description: FK to dim_transaction_type.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_transaction_type')
+              field: transaction_type_code
+      - name: transaction_date
+        tests:
+          - not_null
+      - name: amount
+        tests:
+          - not_null
+      - name: fee_amount
+        tests:
+          - not_null
+
+  - name: fact_daily_account_balance
+    description: >
+      Periodic snapshot fact. One row per account per day.
+      Enriched with customer_id and branch_id from the account dimension.
+      Includes balance validation flag and net_change.
+    columns:
+      - name: account_id
+        description: FK to dim_account.
+        tests:
+          - not_null
+      - name: balance_date
+        description: Date of the balance snapshot.
+        tests:
+          - not_null
+      - name: opening_balance
+        tests:
+          - not_null
+      - name: closing_balance
+        tests:
+          - not_null
+    tests:
+      - unique:
+          column_name: "concat(account_id, '-', cast(balance_date as string))"
+
+  - name: fact_settlement_reconciliation
+    description: >
+      Reconciliation fact comparing settlement file totals with actual
+      transaction aggregates. One row per settlement_date/channel/transaction_type_code.
+      Surfaces amount and count variances. ~12% of settlement records have
+      intentional mismatches from the data generator.
+    columns:
+      - name: settlement_batch_id
+        description: Primary key — settlement batch identifier.
+        tests:
+          - unique
+          - not_null
+      - name: reconciliation_status
+        description: MATCHED if totals align, UNMATCHED otherwise.
+        tests:
+          - accepted_values:
+              values: ['MATCHED', 'UNMATCHED']
+
+  - name: fact_fraud_alert
+    description: >
+      Rule-based risk alert fact. One row per flagged transaction per alert rule.
+      A single transaction can trigger multiple alerts (e.g., high value + high risk MCC).
+      Rules: HIGH_VALUE (>100K NPR), HIGH_RISK_MCC, RAPID_ACTIVITY (>5 txn/day/account),
+      ZERO_AMOUNT.
+    columns:
+      - name: alert_key
+        description: Surrogate key for each alert instance.
+        tests:
+          - unique
+          - not_null
+      - name: alert_type
+        description: Rule that triggered this alert.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['HIGH_VALUE', 'HIGH_RISK_MCC', 'RAPID_ACTIVITY', 'ZERO_AMOUNT']
+      - name: alert_severity
+        description: Alert severity level.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['LOW', 'MEDIUM', 'HIGH']
+      - name: transaction_id
+        description: FK to fact_transaction.
+        tests:
+          - not_null

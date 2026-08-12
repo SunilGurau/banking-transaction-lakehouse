@@ -7,4 +7,16 @@
     {% do exceptions.raise_compiler_error('batch_table_uris.customers is required') %}
 {% endif %}
 
-select * from delta.`{{ customers_uri | default('dummy', true) }}`
+{% if execute %}
+    {% call statement('create_temp_view', auto_begin=false) %}
+        CREATE OR REPLACE TEMPORARY VIEW temp_customers_source
+        USING csv
+        OPTIONS (
+            path '{{customers_uri}}',
+            header 'true',
+            inferSchema 'true'
+        );
+    {% endcall %}
+{% endif %}
+
+select * from temp_customers_source
