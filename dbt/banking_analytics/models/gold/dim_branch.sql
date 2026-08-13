@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
 with branch_source as (
-    select * from {{ ref('stg_reference__branches') }}
+    select * from delta.`s3a://bronze/stg_reference_branches`
 )
 
 select

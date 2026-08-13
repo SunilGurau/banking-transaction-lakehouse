@@ -1,4 +1,7 @@
-{{ config(materialized='table') }}
+{{ config(
+    materialized='incremental',
+    incremental_strategy='append'
+) }}
 
 /*
     fact_daily_account_balance — Periodic snapshot fact
@@ -8,7 +11,10 @@
 */
 
 with balances as (
-    select * from {{ ref('silver_daily_account_balance') }}
+    select * from delta.`s3a://silver/silver_daily_account_balance`
+    {% if is_incremental() %}
+    where balance_date > (select max(balance_date) from {{ this }})
+    {% endif %}
 ),
 
 accounts as (
@@ -16,7 +22,7 @@ accounts as (
         account_id,
         customer_id,
         branch_id
-    from {{ ref('silver_account') }}
+    from delta.`s3a://silver/silver_account`
 )
 
 select

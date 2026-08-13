@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
 with customer_source as (
-    select * from {{ ref('silver_customer') }}
+    select * from delta.`s3a://silver/silver_customer`
 )
 
 select

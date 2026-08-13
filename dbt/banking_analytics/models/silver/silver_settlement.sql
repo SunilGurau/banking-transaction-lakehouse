@@ -1,18 +1,24 @@
-{{ config(materialized='table') }}
+{{ config(
+    materialized='incremental',
+    incremental_strategy='append'
+) }}
 
 with source as (
-    select * from {{ ref('stg_batch__settlements') }}
+    select * from delta.`s3a://bronze/stg_batch__settlements`
+    {% if is_incremental() %}
+    where cast(settlement_date as date) > (select max(settlement_date) from {{ this }})
+    {% endif %}
 ),
 
-deduplicated as (
-    select
-        *,
-        row_number() over (
-            partition by settlement_batch_id
-            order by settlement_date desc
-        ) as _row_num
-    from source
-),
+-- deduplicated as (
+--     select
+--         *,
+--         row_number() over (
+--             partition by settlement_batch_id
+--             order by settlement_date desc
+--         ) as _row_num
+--     from source
+-- ),
 
 cleaned as (
     select
@@ -25,8 +31,9 @@ cleaned as (
         cast(settled_fee_amount as double)                   as settled_fee_amount,
         cast(currency as string)                            as currency,
         current_timestamp()                                 as dbt_loaded_at
-    from deduplicated
-    where _row_num = 1
+    -- from deduplicated
+    -- where _row_num = 1
+    from source
 )
 
 select * from cleaned

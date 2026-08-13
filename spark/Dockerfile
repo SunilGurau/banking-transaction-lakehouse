@@ -23,9 +23,11 @@ EXPOSE 10000 4040
 # Use spark-submit directly (foreground process) instead of start-thriftserver.sh
 # which is a daemon launcher that forks and exits — causing Docker to kill the container.
 ENTRYPOINT ["/opt/spark/bin/spark-submit", \
-  "--class", "org.apache.spark.sql.hive.thriftserver.HiveThriftServer2", \
-  "--name", "Thrift JDBC/ODBC Server", \
-  "--conf", "spark.driver.host=spark-thrift", \
-  "--hiveconf", "hive.server2.thrift.port=10000", \
-  "--hiveconf", "hive.server2.thrift.bind.host=0.0.0.0", \
-  "--hiveconf", "hive.server2.authentication=NOSASL"]
+    "--class", "org.apache.spark.sql.hive.thriftserver.HiveThriftServer2", \
+    "--name", "Thrift JDBC/ODBC Server", \
+    "--conf", "spark.driver.host=spark-thrift", \
+    "--hiveconf", "hive.server2.thrift.port=10000", \
+    "--hiveconf", "hive.server2.thrift.bind.host=0.0.0.0", \
+    "--hiveconf", "hive.server2.thrift.transport.mode=binary", \
+    "--hiveconf", "hive.server2.authentication=NOSASL" \
+]

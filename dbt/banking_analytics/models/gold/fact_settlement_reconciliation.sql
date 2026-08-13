@@ -1,4 +1,7 @@
-{{ config(materialized='table') }}
+{{ config(
+    materialized='incremental',
+    incremental_strategy='append'
+) }}
 
 /*
     fact_settlement_reconciliation — Reconciliation fact
@@ -19,7 +22,10 @@ with settlement as (
         settled_gross_amount,
         settled_fee_amount,
         currency
-    from {{ ref('silver_settlement') }}
+    from delta.`s3a://silver/silver_settlement`
+    {% if is_incremental() %}
+    where settlement_date > (select max(settlement_date) from {{ this }})
+    {% endif %}
 ),
 
 -- Aggregate actual transactions for the same grain
@@ -31,8 +37,11 @@ transaction_aggregates as (
         count(transaction_id)                               as actual_transaction_count,
         round(sum(amount), 2)                               as actual_gross_amount,
         round(sum(fee_amount), 2)                           as actual_fee_amount
-    from {{ ref('silver_transaction') }}
+    from delta.`s3a://silver/silver_transaction`
     where status = 'SUCCESS'
+    {% if is_incremental() %}
+      and transaction_date > (select max(settlement_date) from {{ this }})
+    {% endif %}
     group by
         transaction_date,
         channel,

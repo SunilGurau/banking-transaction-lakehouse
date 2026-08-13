@@ -1,7 +1,13 @@
-{{ config(materialized='table') }}
+{{ config(
+    materialized='incremental',
+    incremental_strategy='append'
+) }}
 
 with source as (
-    select * from {{ ref('stg_batch__transactions') }}
+    select * from delta.`s3a://bronze/stg_batch__transactions`
+    {% if is_incremental() %}
+    where cast(transaction_date as date) > (select max(transaction_date) from {{ this }})
+    {% endif %}
 ),
 
 -- The data generator intentionally inserts duplicate transactions.

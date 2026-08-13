@@ -1,4 +1,7 @@
-{{ config(materialized='table') }}
+{{ config(
+    materialized='incremental',
+    incremental_strategy='append'
+) }}
 
 /*
     fact_transaction — Core transaction fact table
@@ -8,7 +11,10 @@
 */
 
 with transactions as (
-    select * from {{ ref('silver_transaction') }}
+    select * from delta.`s3a://silver/silver_transaction`
+    {% if is_incremental() %}
+    where transaction_date > (select max(transaction_date) from {{ this }})
+    {% endif %}
 )
 
 select

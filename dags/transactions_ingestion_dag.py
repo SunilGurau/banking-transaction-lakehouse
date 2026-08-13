@@ -56,7 +56,7 @@ from reference_minio_loader import load_reference_csvs_to_minio
     dag_id="transactions_ingestion",
     start_date=timezone.datetime(2026, 1, 1),
     schedule="0 0 * * *",
-    catchup=True,
+    catchup=False,
     tags=["batch", "ingestion", "transactions"],
     max_active_runs=1,
 )

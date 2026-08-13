@@ -30,7 +30,7 @@ DBT_VARS_TEMPLATE = '{{ {"batch_table_uris": {"transactions": ti.xcom_pull(task_
     dag_id="transactions_transformation",
     start_date=timezone.datetime(2026, 1, 1),
     schedule="@daily",
-    catchup=True,
+    catchup=False,
     tags=["batch", "transformation", "transactions", "dbt"],
     max_active_runs=1,
 )
@@ -50,7 +50,7 @@ def transactions_transformation():
             f"--project-dir {DBT_PROJECT_DIR} "
             f"--profiles-dir {DBT_PROFILES_DIR} "
             f"--target {DBT_TARGET} "
-            f"--select stg_batch__transactions "
+            f"--select fact_transaction "
             f"--vars '{DBT_VARS_TEMPLATE}'"
         ),
     )

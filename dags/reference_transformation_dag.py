@@ -54,7 +54,7 @@ def reference_transformation():
             f"--target {DBT_TARGET} "
             # f"--select stg_reference__branches+ stg_reference__merchant_categories+ stg_reference__transaction_types+ "
             # f"--select stg_reference_transaction_types+ "
-            f"--select stg_reference__transaction_types "
+            f"--select dim_transaction_type "
             f'--vars \'{{{{ {{"reference_table_uris": ti.xcom_pull(task_ids="resolve_latest_reference_tables")}} | tojson }}}}\''
         ),
     )

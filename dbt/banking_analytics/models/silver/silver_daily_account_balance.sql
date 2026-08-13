@@ -1,9 +1,11 @@
-{{ config(materialized='table') }}
+{{ config(
+    materialized='incremental',
+    incremental_strategy='append'
+) }}
 
 with source as (
-    select * from {{ ref('stg_batch__balances') }}
+    select * from delta.`s3a://bronze/stg_batch__balances`
 ),
-
 -- deduplicated as (
 --     select
 --         *,
@@ -40,6 +42,9 @@ cleaned as (
     -- from deduplicated
     -- where _row_num = 1
     from source
+    {% if is_incremental() %}
+    where cast(balance_date as date) > (select max(balance_date) from {{ this }})
+    {% endif %}
 )
 
 select * from cleaned

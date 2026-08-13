@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
 with mcc_source as (
-    select * from {{ ref('stg_reference__merchant_categories') }}
+    select * from delta.`s3a://bronze/stg_reference_merchant_categories`
 )
 
 select

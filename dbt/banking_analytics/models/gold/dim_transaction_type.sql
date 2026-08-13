@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
 with txn_type_source as (
-    select * from {{ ref('stg_reference__transaction_types') }}
+    select * from delta.`s3a://bronze/stg_reference_transaction_types`
 )
 
 select

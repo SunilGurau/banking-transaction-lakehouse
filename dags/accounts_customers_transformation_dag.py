@@ -46,7 +46,7 @@ def accounts_customers_transformation():
             f"--project-dir {DBT_PROJECT_DIR} "
             f"--profiles-dir {DBT_PROFILES_DIR} "
             f"--target {DBT_TARGET} "
-            f"--select silver_customer "
+            f"--select dim_customer "
             f'--vars \'{{{{ {{"batch_table_uris": ti.xcom_pull(task_ids="resolve_latest_tables")}} | tojson }}}}\''
         ),
     )

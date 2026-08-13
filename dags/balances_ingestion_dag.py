@@ -15,7 +15,7 @@ if str(SRC_DIR) not in sys.path:
     dag_id="balances_ingestion",
     start_date=timezone.datetime(2026, 1, 1),
     schedule="0 0 * * *",
-    catchup=True,
+    catchup=False,
     tags=["batch", "ingestion", "balances"],
     max_active_runs=1,
 )
