@@ -13,7 +13,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - ./minio-data:/data
+      - minio_data:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
@@ -126,7 +126,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - ./etl_postgres_data:/var/lib/postgresql/data
+      - etl_postgres_data:/var/lib/postgresql/data
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test:
@@ -318,17 +318,19 @@ services:
     ports:
       - "8501:8501"
     volumes:
+      # Maps your local dashboard script directly into the container's working directory for hot-reloading
+      # Change "./app.py" to "./dashboard/app.py" if your code file sits inside the /dashboard folder
       - ./dashboard/app.py:/app/app.py
     environment:
       # Postgres Connectivity
-      - POSTGRES_USER=${POSTGRES_USER:-etl_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-etl_password}
-      - POSTGRES_DB=${POSTGRES_DB:-etl_db}
+      - POSTGRES_USER=etl_user
+      - POSTGRES_PASSWORD=etl_password
+      - POSTGRES_DB=etl_db
       - POSTGRES_HOST=etl-postgres
       - POSTGRES_PORT=5432
       # MinIO Object Storage Connectivity
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin123
       - MINIO_ENDPOINT_URL=http://minio:9000
     depends_on:
       etl-postgres:
@@ -467,35 +469,10 @@ services:
     networks:
       - banking-lakehouse-net
 
-  fraud-alerts-consumer:
-    build: .
-    container_name: fraud-alerts-consumer
-    restart: on-failure
-    depends_on:
-      kafka:
-        condition: service_healthy
-      etl-postgres:
-        condition: service_healthy
-    volumes:
-      - .:/opt/airflow
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-etl_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-etl_password}
-      - POSTGRES_DB=${POSTGRES_DB:-etl_db}
-    command: >
-      python src/fraud_alerts_consumer.py 
-      --pg-conn "postgresql://${POSTGRES_USER:-etl_user}:${POSTGRES_PASSWORD:-etl_password}@etl-postgres:5432/${POSTGRES_DB:-etl_db}" 
-      --kafka-bootstrap "kafka:29092" 
-      --topic "banking.fraud.alerts"
-    networks:
-      - banking-lakehouse-net
-
 networks:
   banking-lakehouse-net:
     driver: bridge
-
-  
-
+    
 volumes:
   airflow_metadata_db:
   etl_postgres_data:
