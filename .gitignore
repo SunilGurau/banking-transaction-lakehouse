@@ -6,4 +6,5 @@ __pycache__
 minio-data/
 airflow.cfg
 airflow.db
+database.sql
 etl_postgres_data/
