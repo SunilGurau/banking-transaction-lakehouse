@@ -1,4 +1,6 @@
-import os
+import pathlib
+
+APP_CODE = r'''import os
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -645,3 +647,9 @@ elif page == PAGES[3]:
             st.plotly_chart(ffa, use_container_width=True)
         else:
             st.success("\u2705 No failing checks recorded.")
+'''
+
+pathlib.Path('c:/Users/Lenovo/Desktop/banking-transaction-lakehouse/dashboard/app.py').write_text(
+    APP_CODE, encoding='utf-8'
+)
+print("Written OK, bytes:", len(APP_CODE))
